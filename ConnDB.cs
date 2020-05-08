@@ -12,7 +12,8 @@ namespace NsetOutputFC
     public class ConnDB
     {
 		private int _date_type; //1--monthly　0--weekly
-		private static string strCalenderDate=DateTime.Now.ToString("yyyyMMdd");
+		private static string strNowDate=DateTime.Now.ToString("yyyyMMdd");
+		private static string strCalenderDate = DateTime.Now.AddDays(1 - DateTime.Now.Day).ToString("yyyyMMdd");
 		private string strTtlWeek;
 		public ConnDB(int Date_type)
 		{
@@ -51,7 +52,7 @@ namespace NsetOutputFC
 			try
 			{
 			
-				string sql = "select TTL_WEEK from CALENDAR_MASTER where CALENDAR_DATE="+ strCalenderDate;
+				string sql = "select TTL_WEEK from CALENDAR_MASTER where CALENDAR_DATE="+ strNowDate;
 				SqlCommand cmd = new SqlCommand(sql, sqlConn);
 				object objWeek = cmd.ExecuteScalar();
 				return objWeek.ToString();
@@ -71,13 +72,16 @@ namespace NsetOutputFC
 			StringBuilder strSQL = new StringBuilder();
 			DataSet ds = new DataSet();
 			strSQL.Append("SELECT                                                                           ");
-			strSQL.Append(" PO.VENDOR_CD,  PO.ITEM_NO,         PO.ITEM_DESC,                                               ");
+			strSQL.Append(" PO.VENDOR_CD, VENDOR_DESC, PO.ITEM_NO,         PO.ITEM_DESC,                                               ");
 			strSQL.Append(" CASE PM.DELV_LT_TYPE WHEN 0 THEN convert(varchar,PM.DELV_LT) WHEN 1             ");
 			strSQL.Append(" THEN convert(varchar,PM.DELV_LT_PROPORTION)   + '(LOT:' +                       ");
 			strSQL.Append(" convert(varchar,PM.STD_LOT_SIZE) + ')' END DELV_LT ,SUM(PO.PO_QTY) PO_QTY,      ");
 			if (this._date_type == 0)
 			{
-				strSQL.Append(" CAL.TTL_WEEK DATE_NO                                                        ");
+				//strSQL.Append(" CAL.TTL_WEEK DATE_NO                                                        ");
+				strSQL.Append(" (SELECT　right(CONVERT(varchar, MIN(CALENDAR_DATE)),4)+'-'　+RIGHT(CONVERT(varchar, MAX(CALENDAR_DATE)),4)   ");
+
+				strSQL.Append(" FROM[PM].[dbo].[CALENDAR_MASTER] WHERE TTL_WEEK = CAL.TTL_WEEK)   as DATE_NO                                 ");
 			}
 			else
 			{
@@ -103,11 +107,12 @@ namespace NsetOutputFC
 			strSQL.Append(" AND PO.VENDOR_CD = PM.VENDOR_CD                                                     ");
 			strSQL.Append(" AND PO.PO_DUE_DATE >= PM.BEG_EFF_DATE                                               ");
 			strSQL.Append("  AND PO.PO_DUE_DATE <= PM.END_EFF_DATE                                              ");
-			strSQL.Append(" WHERE PO.SC_FLAG = 1                                                                ");
+			strSQL.Append("LEFT JOIN VENDOR_MASTER ON VENDOR_MASTER.VENDOR_CD = po.VENDOR_CD                    ");
 			strSQL.Append(" AND PO.ITEM_TYPE <> '99'                                                            ");
-	
-	
-		
+			strSQL.Append(" WHERE PO.SC_FLAG = 1                                                                ");
+
+
+
 			if (this._date_type == 1)
 			{
 				strSQL.Append("AND PO.PO_DUE_DATE >=" +strCalenderDate+ " AND PO.PO_DUE_DATE <=            ");
@@ -121,7 +126,7 @@ namespace NsetOutputFC
 			
 			}
 			
-			strSQL.Append(" GROUP BY PO.VENDOR_CD, PO.ITEM_NO,    PO.ITEM_DESC,                             ");
+			strSQL.Append(" GROUP BY PO.VENDOR_CD,VENDOR_DESC, PO.ITEM_NO,    PO.ITEM_DESC,                             ");
 			strSQL.Append(" CASE PM.DELV_LT_TYPE WHEN 0 THEN convert(varchar,PM.DELV_LT) WHEN 1             ");
 			strSQL.Append(" THEN convert(varchar,PM.DELV_LT_PROPORTION)   + '(LOT:' +                       ");
 			strSQL.Append(" convert(varchar,PM.STD_LOT_SIZE) + ')' END,                                     ");
